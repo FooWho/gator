@@ -8,6 +8,9 @@ import (
 
 func main() {
 
-	config := config.Read()
-	fmt.Printf("db_url: %s\n", config.DBUrl)
+	configuration := &config.Config{}
+	configuration.Read()
+	configuration.SetUser("jason")
+	configuration.Read()
+	fmt.Printf("%+v\n", *configuration)
 }
