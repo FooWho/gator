@@ -26,15 +26,15 @@ func handlerLogin(s *state, cmd command) error {
 	}
 	err := s.config.SetUser(cmd.args[0])
 	if err != nil {
-		return fmt.Errorf("unable to set user - %v", err)
+		return fmt.Errorf("unable to set user: %w", err)
 	}
-	fmt.Printf("Username set - %s", cmd.args[0])
+	fmt.Printf("Username set - %s\n", cmd.args[0])
 	return nil
 }
 
 func (c *commands) run(s *state, cmd command) error {
 	if s.config == nil {
-		return fmt.Errorf("state not initialized")
+		return errors.New("state not initialized")
 	}
 	f, ok := c.cmdHandler[cmd.name]
 	if !ok {

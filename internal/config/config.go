@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 )
 
 type Config struct {
@@ -14,60 +15,66 @@ type Config struct {
 
 const configFileName = ".gatorconfig.json"
 
-func (c *Config) Read() error {
+func getConfigPath() (string, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return fmt.Errorf("could not obtain user home directory name - %v", err)
+		return "", fmt.Errorf("could not obtain user home directory: %w", err)
 	}
-	homeDir += "/"
+	return filepath.Join(homeDir, configFileName), nil
+}
 
-	configFile, err := os.Open(homeDir + configFileName)
+func (c *Config) Read() error {
+	path, err := getConfigPath()
 	if err != nil {
-		return fmt.Errorf("could not open config file: %s - %v", homeDir+configFileName, err)
+		return err
 	}
-	configBytes, err := io.ReadAll(configFile)
+
+	configFile, err := os.Open(path)
 	if err != nil {
-		return fmt.Errorf("could not read config file: %s - %v", homeDir+configFileName, err)
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("could not open config file %s: %w", path, err)
 	}
 	defer configFile.Close()
-	err = json.Unmarshal(configBytes, c)
+
+	configBytes, err := io.ReadAll(configFile)
 	if err != nil {
-		return fmt.Errorf("error unmarhsalling JSON - %v", err)
+		return fmt.Errorf("could not read config file %s: %w", path, err)
+	}
+
+	if len(configBytes) == 0 {
+		return nil
+	}
+
+	if err := json.Unmarshal(configBytes, c); err != nil {
+		return fmt.Errorf("error unmarshalling JSON from %s: %w", path, err)
 	}
 	return nil
 }
 
 func (c *Config) SetUser(user string) error {
-	homeDir, err := os.UserHomeDir()
-	homeDir += "/"
-	if err != nil {
-		return fmt.Errorf("could not obtain user home directory name - %v", err)
-	}
-	configFile, err := os.Open(homeDir + configFileName)
-	if err != nil {
-		return fmt.Errorf("could not open config file: %s - %v", homeDir+configFileName, err)
-	}
-	configBytes, err := io.ReadAll(configFile)
-	if err != nil {
-		return fmt.Errorf("could not read config file: %s - %v", homeDir+configFileName, err)
-	}
-	err = json.Unmarshal(configBytes, c)
-	if err != nil {
-		return fmt.Errorf("error unmarhsalling JSON - %v", err)
+	if err := c.Read(); err != nil {
+		return fmt.Errorf("could not read existing config: %w", err)
 	}
 
-	configFile.Close()
-	configFile, err = os.Create(homeDir + configFileName)
+	c.CurrentUserName = user
+
+	path, err := getConfigPath()
 	if err != nil {
-		return fmt.Errorf("could not create config file: %s - %v", homeDir+configFileName, err)
+		return err
+	}
+
+	configFile, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("could not create config file %s: %w", path, err)
 	}
 	defer configFile.Close()
-	c.CurrentUserName = user
+
 	encoder := json.NewEncoder(configFile)
 	encoder.SetIndent("", "  ")
-	err = encoder.Encode(c)
-	if err != nil {
-		return fmt.Errorf("error encoding json file - %v", err)
+	if err := encoder.Encode(c); err != nil {
+		return fmt.Errorf("error encoding json to file %s: %w", path, err)
 	}
 	return nil
 }
