@@ -30,9 +30,9 @@ go.work.sum
 # ====================================================================
 # Local workspace settings and debug configurations
 .vscode/
-!.vscode/extensions.json
-!.vscode/launch.json
-!.vscode/settings.json
+#!.vscode/extensions.json
+#!.vscode/launch.json
+#!.vscode/settings.json
 
 # Local history extensions / temporary data
 .history/
