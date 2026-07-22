@@ -1,10 +1,13 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 
 	"github.com/FooWho/gator/internal/config"
+	"github.com/FooWho/gator/internal/database"
+	_ "github.com/lib/pq"
 )
 
 func main() {
@@ -16,6 +19,9 @@ func main() {
 	gatorState := state{config: cfg}
 	gatorCommands := commands{}
 	gatorCommands.register("login", handlerLogin)
+
+	db, err := sql.Open("postgres", cfg.DBUrl)
+	dbQueries := database.New(db)
 
 	args := os.Args
 	if len(args) < 2 {

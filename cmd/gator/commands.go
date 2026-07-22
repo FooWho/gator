@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/FooWho/gator/internal/config"
+	"github.com/FooWho/gator/internal/database"
 )
 
 type command struct {
@@ -18,6 +19,7 @@ type commands struct {
 
 type state struct {
 	config *config.Config
+	db     *database.Queries
 }
 
 func handlerLogin(s *state, cmd command) error {
