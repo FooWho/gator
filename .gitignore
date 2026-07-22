@@ -1,0 +1,50 @@
+# ====================================================================
+# Go (Golang) Exclusions
+# ====================================================================
+# Compiled binaries and executables
+bin/
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binaries and coverage artifacts
+*.test
+*.out
+*.prof
+*.coverprofile
+profile.cov
+
+# Dependency directories 
+# (Uncomment vendor/ if you do not want to commit vendored dependencies)
+# vendor/
+
+# Go workspace files (local development configurations)
+go.work
+go.work.sum
+
+# ====================================================================
+# VS Code (Visual Studio Code) Exclusions
+# ====================================================================
+# Local workspace settings and debug configurations
+.vscode/
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+
+# Local history extensions / temporary data
+.history/
+*.code-workspace
+
+# ====================================================================
+# Environment & System Files
+# ====================================================================
+# Local environment variables containing credentials
+.env
+.env.local
+
+# Operating system files
+.DS_Store
+Thumbs.db
