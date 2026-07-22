@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/FooWho/gator/src/internal/config"
+	"github.com/FooWho/gator/internal/config"
 )
 
 type command struct {

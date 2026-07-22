@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/FooWho/gator/src/internal/config"
+	"github.com/FooWho/gator/internal/config"
 )
 
 func main() {
