@@ -19,9 +19,15 @@ func main() {
 	gatorState := state{config: cfg}
 	gatorCommands := commands{}
 	gatorCommands.register("login", handlerLogin)
+	gatorCommands.register("register", handlerRegister)
 
 	db, err := sql.Open("postgres", cfg.DBUrl)
+	if err != nil {
+		fmt.Print("could not open database")
+		os.Exit(1)
+	}
 	dbQueries := database.New(db)
+	gatorState.db = dbQueries
 
 	args := os.Args
 	if len(args) < 2 {
