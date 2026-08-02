@@ -30,7 +30,12 @@ func handlerLogin(s *state, cmd command) error {
 	if len(cmd.args) == 0 {
 		return errors.New("login requires username as argument")
 	}
-	err := s.config.SetUser(cmd.args[0])
+	username := cmd.args[0]
+	user, err := s.db.GetUser(context.Background(), sql.NullString{String: username, Valid: true})
+	if err != nil {
+		return fmt.Errorf("call to GetUser() failed for user: %s\n", username)
+	}
+	err = s.config.SetUser(user.Name.String)
 	if err != nil {
 		return fmt.Errorf("unable to set user: %w", err)
 	}
@@ -49,6 +54,7 @@ func handlerRegister(s *state, cmd command) error {
 			Name:      sql.NullString{String: cmd.args[0], Valid: true},
 		})
 	if err != nil {
+		fmt.Printf("err: %v\n", err)
 		return fmt.Errorf("unable to create user: %s", cmd.args[0])
 	}
 	err = handlerLogin(s, command{name: "login", args: cmd.args})
