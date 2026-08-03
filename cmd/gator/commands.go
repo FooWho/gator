@@ -65,6 +65,59 @@ func handlerRegister(s *state, cmd command) error {
 	return nil
 }
 
+func handlerReset(s *state, cmd command) error {
+	if len(cmd.args) != 0 {
+		return errors.New("reset does not take arguments")
+	}
+	err := s.db.DeleteUsers(context.Background())
+	if err != nil {
+		return errors.New("could not TRUNCATE TABLE users")
+	}
+	fmt.Printf("TRUNCATED TABLE users done\n")
+	return nil
+}
+
+func handlerListUsers(s *state, cmd command) error {
+	if len(cmd.args) != 0 {
+		return errors.New("users does not take arguments")
+	}
+	users, err := s.db.ListUsers(context.Background())
+	if err != nil {
+		return fmt.Errorf("users could not get users: %v\n", err)
+	}
+	for _, user := range users {
+		fmt.Printf("* %s", user.Name.String)
+		if user.Name.String == s.config.CurrentUserName {
+			fmt.Printf(" (current)\n")
+		} else {
+			fmt.Print("\n")
+		}
+	}
+	return nil
+}
+
+func handlerAgg(s *state, cmd command) error {
+	if len(cmd.args) != 0 {
+		return errors.New("agg does not take arguments")
+	}
+	feed, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
+	if err != nil {
+		return fmt.Errorf("fetchFeed() failed")
+	}
+	fmt.Printf("Title: %s\n", feed.Channel.Title)
+	fmt.Printf("Link: %s\n", feed.Channel.Link)
+	fmt.Printf("Description: %s\n", feed.Channel.Description)
+	fmt.Print("Items: \n")
+	for _, item := range feed.Channel.Item {
+		fmt.Printf("     Title: %s\n", item.Title)
+		fmt.Printf("     Link: %s\n", item.Link)
+		fmt.Printf("     Description: %s\n", item.Description)
+		fmt.Printf("     PubDate: %s\n", item.PubDate)
+	}
+
+	return nil
+}
+
 func (c *commands) run(s *state, cmd command) error {
 	if s.config == nil {
 		return errors.New("state not initialized")

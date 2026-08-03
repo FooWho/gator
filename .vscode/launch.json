@@ -12,8 +12,7 @@
             "mode": "auto",
             "program": "${fileDirname}",
             "args": [
-                "login",
-                "jasonelison",
+                "agg",
             ],
         }
     ]
