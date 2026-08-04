@@ -23,6 +23,10 @@ func main() {
 	gatorCommands.register("reset", handlerReset)
 	gatorCommands.register("users", handlerListUsers)
 	gatorCommands.register("agg", handlerAgg)
+	gatorCommands.register("addfeed", handlerAddFeed)
+	gatorCommands.register("feeds", handlerListFeeds)
+	gatorCommands.register("follow", handlerFollowFeed)
+	gatorCommands.register("following", handlerFollowing)
 
 	db, err := sql.Open("postgres", cfg.DBUrl)
 	if err != nil {
