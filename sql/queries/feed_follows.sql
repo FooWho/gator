@@ -10,7 +10,6 @@ WITH inserted_feed_follow AS (
     )
     RETURNING *
 )
-
 SELECT
     inserted_feed_follow.*,
     feeds.name AS feed_name,
@@ -24,3 +23,14 @@ LIMIT 1;
 SELECT * FROM feed_follows 
 INNER JOIN feeds ON feed_follows.feed_id = feeds.id
 WHERE feed_follows.user_id = $1;
+
+-- name: UnfollowFeed :one
+WITH deleted_follow AS (
+    DELETE FROM feed_follows
+    WHERE feed_follows.user_id = $2 
+      AND feed_follows.feed_id = (SELECT id FROM feeds WHERE feeds.url = $1)
+    RETURNING feed_id
+)
+SELECT feeds.*
+FROM feeds
+JOIN deleted_follow ON feeds.id = deleted_follow.feed_id;
