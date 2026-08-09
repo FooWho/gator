@@ -7,6 +7,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
@@ -74,23 +75,24 @@ func (q *Queries) FollowFeed(ctx context.Context, arg FollowFeedParams) (FollowF
 }
 
 const getFeedFollowsByUserID = `-- name: GetFeedFollowsByUserID :many
-SELECT feed_follows.id, feed_follows.created_at, feed_follows.updated_at, feed_follows.user_id, feed_id, feeds.id, feeds.created_at, feeds.updated_at, name, url, feeds.user_id FROM feed_follows 
+SELECT feed_follows.id, feed_follows.created_at, feed_follows.updated_at, feed_follows.user_id, feed_id, feeds.id, feeds.created_at, feeds.updated_at, name, url, feeds.user_id, last_fetched_at FROM feed_follows 
 INNER JOIN feeds ON feed_follows.feed_id = feeds.id
 WHERE feed_follows.user_id = $1
 `
 
 type GetFeedFollowsByUserIDRow struct {
-	ID          uuid.UUID
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	UserID      uuid.UUID
-	FeedID      uuid.UUID
-	ID_2        uuid.UUID
-	CreatedAt_2 time.Time
-	UpdatedAt_2 time.Time
-	Name        string
-	Url         string
-	UserID_2    uuid.UUID
+	ID            uuid.UUID
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	UserID        uuid.UUID
+	FeedID        uuid.UUID
+	ID_2          uuid.UUID
+	CreatedAt_2   time.Time
+	UpdatedAt_2   time.Time
+	Name          string
+	Url           string
+	UserID_2      uuid.UUID
+	LastFetchedAt sql.NullTime
 }
 
 func (q *Queries) GetFeedFollowsByUserID(ctx context.Context, userID uuid.UUID) ([]GetFeedFollowsByUserIDRow, error) {
@@ -114,6 +116,7 @@ func (q *Queries) GetFeedFollowsByUserID(ctx context.Context, userID uuid.UUID) 
 			&i.Name,
 			&i.Url,
 			&i.UserID_2,
+			&i.LastFetchedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -135,7 +138,7 @@ WITH deleted_follow AS (
       AND feed_follows.feed_id = (SELECT id FROM feeds WHERE feeds.url = $1)
     RETURNING feed_id
 )
-SELECT feeds.id, feeds.created_at, feeds.updated_at, feeds.name, feeds.url, feeds.user_id
+SELECT feeds.id, feeds.created_at, feeds.updated_at, feeds.name, feeds.url, feeds.user_id, feeds.last_fetched_at
 FROM feeds
 JOIN deleted_follow ON feeds.id = deleted_follow.feed_id
 `
@@ -155,6 +158,7 @@ func (q *Queries) UnfollowFeed(ctx context.Context, arg UnfollowFeedParams) (Fee
 		&i.Name,
 		&i.Url,
 		&i.UserID,
+		&i.LastFetchedAt,
 	)
 	return i, err
 }

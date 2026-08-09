@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
@@ -96,9 +97,54 @@ func handlerListUsers(s *state, cmd command) error {
 }
 
 func handlerAgg(s *state, cmd command) error {
-	if len(cmd.args) != 0 {
-		return errors.New("agg does not take arguments")
+	if len(cmd.args) != 1 {
+		return errors.New("agg needs one argument, time_between_reqs")
 	}
+	time_between_reqs, err := time.ParseDuration(cmd.args[0])
+	if err != nil {
+		return fmt.Errorf("could not parse time duration: %s", cmd.args[0])
+	}
+	fmt.Printf("Collecting feeds every %s\n", time_between_reqs.String())
+
+	ticker := time.NewTicker(time_between_reqs)
+	defer ticker.Stop()
+
+	for t := range ticker.C {
+		fmt.Println("Tick at ", t.Format("15:04:05.000"))
+		feed, err := s.db.GetNextFeedToFetch(context.Background())
+		if err != nil {
+			return errors.New("unable to obtain next feed in handlerAgg()")
+		}
+		fmt.Printf("**********FetchNextFeed got: %s\n", feed.Name)
+		rssFeed, err := fetchFeed(context.Background(), feed.Url)
+		if err != nil {
+			return fmt.Errorf("unable to fetch %s", feed.Name)
+		}
+		_, err = s.db.MarkFeedFetched(context.Background(),
+			database.MarkFeedFetchedParams{
+				ID: feed.ID,
+				LastFetchedAt: sql.NullTime{
+					Time:  time.Now(),
+					Valid: true,
+				},
+			},
+		)
+		if err != nil {
+			return fmt.Errorf("unable to mark feed %s as fetched", feed.Name)
+		}
+		fmt.Printf("Fetched %s:\n", rssFeed.Channel.Title)
+		fmt.Printf("    Title: %s\n", rssFeed.Channel.Title)
+		fmt.Printf("    Description: %s\n", rssFeed.Channel.Description)
+		fmt.Printf("    Url: %s\n", rssFeed.Channel.Link)
+		for _, item := range rssFeed.Channel.Item {
+			fmt.Printf("        Title: %s\n", item.Title)
+			fmt.Printf("        Link: %s\n", item.Link)
+			fmt.Printf("        Date: %s\n", item.PubDate)
+			fmt.Printf("        Description: %s\n\n", item.Description)
+		}
+
+	}
+
 	feed, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
 	if err != nil {
 		return fmt.Errorf("fetchFeed() failed")
