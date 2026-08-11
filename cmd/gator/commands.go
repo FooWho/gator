@@ -141,6 +141,29 @@ func handlerAgg(s *state, cmd command) error {
 			fmt.Printf("        Link: %s\n", item.Link)
 			fmt.Printf("        Date: %s\n", item.PubDate)
 			fmt.Printf("        Description: %s\n\n", item.Description)
+			nts := sql.NullTime{}
+			ts, err := time.Parse("2006-01-02", item.PubDate)
+			if err != nil {
+				nts.Valid = false
+			} else {
+				nts.Time = ts
+				nts.Valid = true
+			}
+			post, err := s.db.CreatePost(context.Background(), database.CreatePostParams{
+				ID:          uuid.New(),
+				CreatedAt:   time.Now(),
+				UpdatedAt:   time.Now(),
+				Title:       item.Title,
+				Url:         item.Link,
+				Description: item.Description,
+				PublishedAt: nts,
+				FeedID:      feed.ID,
+			})
+			if err != nil {
+				fmt.Printf("Got err: %v\n", err)
+			} else {
+				fmt.Printf("Posted: %s\n", post.Title)
+			}
 		}
 
 	}
