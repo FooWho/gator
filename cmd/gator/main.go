@@ -28,6 +28,7 @@ func main() {
 	gatorCommands.register("follow", middlewareLoggedIn(handlerFollowFeed))
 	gatorCommands.register("following", middlewareLoggedIn(handlerFollowing))
 	gatorCommands.register("unfollow", middlewareLoggedIn(handlerUnfollow))
+	gatorCommands.register("browse", middlewareLoggedIn(handlerBrowse))
 
 	db, err := sql.Open("postgres", cfg.DBUrl)
 	if err != nil {

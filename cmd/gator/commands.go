@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/FooWho/gator/internal/config"
@@ -111,78 +112,11 @@ func handlerAgg(s *state, cmd command) error {
 
 	for t := range ticker.C {
 		fmt.Println("Tick at ", t.Format("15:04:05.000"))
-		feed, err := s.db.GetNextFeedToFetch(context.Background())
+		err = scrapeFeeds(s)
 		if err != nil {
-			return errors.New("unable to obtain next feed in handlerAgg()")
+			return fmt.Errorf("scrapeFeed() returned %v", err)
 		}
-		fmt.Printf("**********FetchNextFeed got: %s\n", feed.Name)
-		rssFeed, err := fetchFeed(context.Background(), feed.Url)
-		if err != nil {
-			return fmt.Errorf("unable to fetch %s", feed.Name)
-		}
-		_, err = s.db.MarkFeedFetched(context.Background(),
-			database.MarkFeedFetchedParams{
-				ID: feed.ID,
-				LastFetchedAt: sql.NullTime{
-					Time:  time.Now(),
-					Valid: true,
-				},
-			},
-		)
-		if err != nil {
-			return fmt.Errorf("unable to mark feed %s as fetched", feed.Name)
-		}
-		fmt.Printf("Fetched %s:\n", rssFeed.Channel.Title)
-		fmt.Printf("    Title: %s\n", rssFeed.Channel.Title)
-		fmt.Printf("    Description: %s\n", rssFeed.Channel.Description)
-		fmt.Printf("    Url: %s\n", rssFeed.Channel.Link)
-		for _, item := range rssFeed.Channel.Item {
-			fmt.Printf("        Title: %s\n", item.Title)
-			fmt.Printf("        Link: %s\n", item.Link)
-			fmt.Printf("        Date: %s\n", item.PubDate)
-			fmt.Printf("        Description: %s\n\n", item.Description)
-			nts := sql.NullTime{}
-			ts, err := time.Parse("2006-01-02", item.PubDate)
-			if err != nil {
-				nts.Valid = false
-			} else {
-				nts.Time = ts
-				nts.Valid = true
-			}
-			post, err := s.db.CreatePost(context.Background(), database.CreatePostParams{
-				ID:          uuid.New(),
-				CreatedAt:   time.Now(),
-				UpdatedAt:   time.Now(),
-				Title:       item.Title,
-				Url:         item.Link,
-				Description: item.Description,
-				PublishedAt: nts,
-				FeedID:      feed.ID,
-			})
-			if err != nil {
-				fmt.Printf("Got err: %v\n", err)
-			} else {
-				fmt.Printf("Posted: %s\n", post.Title)
-			}
-		}
-
 	}
-
-	feed, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
-	if err != nil {
-		return fmt.Errorf("fetchFeed() failed")
-	}
-	fmt.Printf("Title: %s\n", feed.Channel.Title)
-	fmt.Printf("Link: %s\n", feed.Channel.Link)
-	fmt.Printf("Description: %s\n", feed.Channel.Description)
-	fmt.Print("Items: \n")
-	for _, item := range feed.Channel.Item {
-		fmt.Printf("     Title: %s\n", item.Title)
-		fmt.Printf("     Link: %s\n", item.Link)
-		fmt.Printf("     Description: %s\n", item.Description)
-		fmt.Printf("     PubDate: %s\n", item.PubDate)
-	}
-
 	return nil
 }
 
@@ -305,6 +239,33 @@ func handlerUnfollow(s *state, cmd command, user database.User) error {
 	return nil
 }
 
+func handlerBrowse(s *state, cmd command, user database.User) error {
+	var limit int
+	var err error
+	switch len(cmd.args) {
+	case 0:
+		limit = 2
+	case 1:
+		limit, err = strconv.Atoi(cmd.args[0])
+		if err != nil {
+			return fmt.Errorf("browse accepts an optional integer argument for the limit of posts - got: %s", cmd.args[0])
+		}
+	default:
+		return errors.New("browse accepts a single optional argument")
+	}
+	params := database.GetPostsForUserParams{UserID: user.ID, Limit: int32(limit)}
+	posts, err := s.db.GetPostsForUser(context.Background(), params)
+
+	for _, post := range posts {
+		fmt.Printf("        Title: %s\n", post.Title)
+		fmt.Printf("        Link: %s\n", post.Url)
+		fmt.Printf("        Date: %s\n", post.PublishedAt)
+		fmt.Printf("        Description: %s\n\n", post.Description)
+	}
+
+	return nil
+}
+
 func (c *commands) run(s *state, cmd command) error {
 	if s.config == nil {
 		return errors.New("state not initialized")
@@ -332,4 +293,61 @@ func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) 
 		}
 		return handler(s, cmd, user)
 	}
+}
+
+func scrapeFeeds(s *state) error {
+	feed, err := s.db.GetNextFeedToFetch(context.Background())
+	if err != nil {
+		return errors.New("unable to obtain next feed in handlerAgg()")
+	}
+	rssFeed, err := fetchFeed(context.Background(), feed.Url)
+	if err != nil {
+		return fmt.Errorf("unable to fetch %s", feed.Name)
+	}
+	feed, err = s.db.MarkFeedFetched(context.Background(),
+		database.MarkFeedFetchedParams{
+			ID: feed.ID,
+			LastFetchedAt: sql.NullTime{
+				Time:  time.Now(),
+				Valid: true,
+			},
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("unable to mark feed %s as fetched", feed.Name)
+	}
+	fmt.Printf("Fetched %s:\n", rssFeed.Channel.Title)
+	fmt.Printf("    Title: %s\n", rssFeed.Channel.Title)
+	fmt.Printf("    Description: %s\n", rssFeed.Channel.Description)
+	fmt.Printf("    Url: %s\n", rssFeed.Channel.Link)
+	for _, item := range rssFeed.Channel.Item {
+		fmt.Printf("        Title: %s\n", item.Title)
+		fmt.Printf("        Link: %s\n", item.Link)
+		fmt.Printf("        Date: %s\n", item.PubDate)
+		fmt.Printf("        Description: %s\n\n", item.Description)
+		nts := sql.NullTime{}
+		ts, err := time.Parse("2006-01-02", item.PubDate)
+		if err != nil {
+			nts.Valid = false
+		} else {
+			nts.Time = ts
+			nts.Valid = true
+		}
+		post, err := s.db.CreatePost(context.Background(), database.CreatePostParams{
+			ID:          uuid.New(),
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+			Title:       item.Title,
+			Url:         item.Link,
+			Description: item.Description,
+			PublishedAt: nts,
+			FeedID:      feed.ID,
+		})
+		if err != nil {
+			fmt.Printf("Got err: %v\n", err)
+		} else {
+			fmt.Printf("Posted: %s\n", post.Title)
+		}
+	}
+	return nil
 }
